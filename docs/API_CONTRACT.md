@@ -58,38 +58,52 @@ Stavka 3 — Sheme zahteva i odgovora (First Cut MVP, engleski standard)
        "status": "lead_saved"
      }
 
-4) Generate article
-   • POST /article
-   • Request (application/json):
-     {
-       "id": "12345"
-     }
-   • Response (200 OK):
-     {
-       "id": "12345",
-       "article": "Predsednik je danas najavio nove mere...",
-       "status": "article_ready"
-     }
+
+
+
+
+4) Generate article (async via job queue)
+• POST /article
+• Request (application/json):
+  {
+    "id": "12345"
+  }
+• Response (202 Accepted):
+  {
+    "id": "12345",
+    "status": "queued"
+  }
 
 5) Get article
-   • GET /article/{id}
-   • Response (200 OK):
-     {
-       "id": "12345",
-       "article": "Predsednik je danas najavio nove mere...",
-       "status": "article_ready"
-     }
+• GET /article/{id}
+• Ako status nije gotov (queued/processing):
+  • Response (200 OK):
+    {
+      "id": "12345",
+      "status": "processing"
+    }
+• Ako je gotovo:
+  • Response (200 OK):
+    {
+      "id": "12345",
+      "article": "Predsednik je danas najavio nove mere...",
+      "status": "article_ready"
+    }
+
+• Napomena (status vrednosti): queued | processing | article_ready
 
 Stavka 4 — Status kodovi i model grešaka (First Cut MVP)
 Opšti status kodovi
 • 200 OK — uspešan zahtev.
 • 201 Created — resurs uspešno kreiran (npr. upload fajla).
+• 202 Accepted — zahtev je prihvaćen za asinhronu obradu (vidi POST /article).
 • 400 Bad Request — nedostaju obavezni parametri ili pogrešan format.
 • 401 Unauthorized — korisnik nema validnu autentikaciju (za kasnije faze).
 • 404 Not Found — traženi resurs ne postoji (npr. transcript ID).
 • 409 Conflict — pokušaj obrade već obrađenog resursa.
 • 413 Payload Too Large — fajl veći od limita (vidi Stavku 6).
 • 500 Internal Server Error — neočekivana greška na serveru.
+
 
 Model greške (JSON odgovor)
 Format:
@@ -103,12 +117,16 @@ Polja:
 • code → mašinski čitljiv identifikator greške (ENG, UPPERCASE).
 • message → opis greške čitljiv za korisnika.
 
+
+
 Primeri po rutama
-• POST /upload → 400 Bad Request (ako fajl nije podržan tip).
+• POST /upload → 400 Bad Request (ako fajl nije podržan tip); 413 Payload Too Large (ako je fajl veći od limita).
 • GET /transcript/{id} → 404 Not Found (ako ID ne postoji).
 • POST /lead → 400 Bad Request (ako lid nije poslat).
-• POST /article → 409 Conflict (ako je vest već generisana).
-• GET /article/{id} → 404 Not Found (ako ID ne postoji).
+• POST /article → 202 Accepted (uspešno enqueue-ovanje zadatka); 409 Conflict (ako je već u toku ili već generisano).
+• GET /article/{id} → 200 OK sa statusom "queued"/"processing" dok ne bude spremno; 200 OK sa "article_ready" i poljem article kad je gotovo; 404 Not Found (ako ID ne postoji).
+
+
 
 Stavka 5 — Autentikacija i autorizacija (First Cut MVP)
 MVP faza
@@ -508,21 +526,18 @@ async function submitLead(id, leadText) {
   return res.json(); // { id, lead, status }
 }
 
-// 4) Generate article
-async function generateArticle(id) {
-  const res = await fetch('<BASE_URL>/api/v1/article', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id })
-  });
-  if (!res.ok) throw new Error('Article generation failed');
-  return res.json(); // { id, article, status }
-}
-
-// 5) Get article
-async function getArticle(id) {
-  const res = await fetch(`<BASE_URL>/api/v1/article/${id}`);
-  if (!res.ok) throw new Error('Article fetch failed');
-  return res.json(); // { id, article, status }
-}
+4) Generate article (enqueue)
 ------------------------------------------------------------
+curl -X POST "<BASE_URL>/api/v1/article" \
+  -H "Content-Type: application/json" -H "Accept: application/json" \
+  -d '{"id":"12345"}'
+# Očekivano: 202 Accepted, {"id":"12345","status":"queued"}
+
+5) Get article (polling dok ne bude spremno)
+------------------------------------------------------------
+curl "<BASE_URL>/api/v1/article/12345" -H "Accept: application/json"
+# Očekivano: 200 OK sa {"status":"queued"|"processing"}; kada je gotovo → {"status":"article_ready","article":"..."}
+
+
+
+

@@ -75,9 +75,10 @@ paths:
         '500': { description: Internal Server Error
 }
 
+  paths:
   /article:
     post:
-      summary: Generate article for a transcript
+      summary: Generate article for a transcript (async)
       requestBody:
         required: true
         content:
@@ -85,34 +86,33 @@ paths:
             schema:
               type: object
               properties:
-                id: { type: string
-}
-              required: [id
-]
+                id:
+                  type: string
+              required:
+                - id
       responses:
-        '200': { description: OK
-}
-        '404': { description: Not Found
-}
-        '409': { description: Conflict
-}
-        '500': { description: Internal Server Error
-}
+        '202':
+          description: Accepted (task queued)
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
 
-  /article/{id
-}:
+  /article/{id}:
     get:
       summary: Get generated article by id
       parameters:
         - in: path
           name: id
-          schema: { type: string
-}
+          schema:
+            type: string
           required: true
       responses:
-        '200': { description: OK
-}
-        '404': { description: Not Found
-}
-        '500': { description: Internal Server Error
-}
+        '200':
+          description: OK (status: queued|processing|article_ready; includes article when ready)
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
