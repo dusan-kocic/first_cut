@@ -1,0 +1,118 @@
+openapi: 3.0.3#
+info:
+  title: First Cut API
+  version: 1.0.0
+servers:
+  - url: <BASE_URL>/api/v1
+paths:
+  /upload:
+    post:
+      summary: Upload a file (audio/txt/doc)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file
+]
+            # Allowed types per contract: audio/mpeg, audio/wav, text/plain, application/msword
+      responses:
+        '201': { description: Created
+}
+        '400': { description: Bad Request
+}
+        '413': { description: Payload Too Large
+}
+        '500': { description: Internal Server Error
+}
+
+  /transcript/{id
+}:
+    get:
+      summary: Get transcript by id
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string
+}
+          required: true
+      responses:
+        '200': { description: OK
+}
+        '404': { description: Not Found
+}
+        '500': { description: Internal Server Error
+}
+
+  /lead:
+    post:
+      summary: Submit lead for a transcript
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string
+}
+                lead: { type: string
+}
+              required: [id, lead
+]
+      responses:
+        '200': { description: OK
+}
+        '400': { description: Bad Request
+}
+        '404': { description: Not Found
+}
+        '500': { description: Internal Server Error
+}
+
+  /article:
+    post:
+      summary: Generate article for a transcript
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string
+}
+              required: [id
+]
+      responses:
+        '200': { description: OK
+}
+        '404': { description: Not Found
+}
+        '409': { description: Conflict
+}
+        '500': { description: Internal Server Error
+}
+
+  /article/{id
+}:
+    get:
+      summary: Get generated article by id
+      parameters:
+        - in: path
+          name: id
+          schema: { type: string
+}
+          required: true
+      responses:
+        '200': { description: OK
+}
+        '404': { description: Not Found
+}
+        '500': { description: Internal Server Error
+}
