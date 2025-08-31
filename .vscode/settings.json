@@ -1,4 +1,6 @@
 {
-    "git.enableSmartCommit": true,
-    "git.postCommitCommand": "none"
+    "python.defaultInterpreterPath": "/Users/dusankocic/Desktop/first_cut/.venv/bin/python",
+    "python.analysis.extraPaths": [
+        "backend"
+    ]
 }
