@@ -3,7 +3,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from redis import Redis
@@ -51,7 +51,9 @@ async def add_request_id(request: Request, call_next):
 async def health():
     return {"status": "ok"}
 
-@app.post("/upload", status_code=201)
+api = APIRouter(prefix="/api/v1")
+
+@api.post("/upload", status_code=201)
 async def upload(file: UploadFile = File(...)):
     if ALLOWED_UPLOAD_TYPES and file.content_type not in ALLOWED_UPLOAD_TYPES:
         raise HTTPException(status_code=400, detail="Unsupported file type")
@@ -65,14 +67,14 @@ async def upload(file: UploadFile = File(...)):
     DB[item_id] = {"filename": file.filename, "transcript": transcript, "lead": None, "job_id": None}
     return {"id": item_id, "filename": file.filename, "status": "ready"}
 
-@app.get("/transcript/{item_id}")
+@api.get("/transcript/{item_id}")
 async def get_transcript(item_id: str):
     item = DB.get(item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Transcript id not found")
     return {"id": item_id, "transcript": item.get("transcript", ""), "status": "ready"}
 
-@app.post("/lead")
+@api.post("/lead")
 async def submit_lead(payload: dict):
     item_id = payload.get("id")
     lead = payload.get("lead")
@@ -84,7 +86,7 @@ async def submit_lead(payload: dict):
     item["lead"] = lead
     return {"id": item_id, "lead": lead, "status": "lead_saved"}
 
-@app.post("/article")
+@api.post("/article", status_code=202)
 async def generate_article(payload: dict):
     item_id = payload.get("id")
     if not item_id:
@@ -100,9 +102,10 @@ async def generate_article(payload: dict):
     from backend.queue.tasks import generate_article_job
     job = queue.enqueue(generate_article_job, item_id)
     item["job_id"] = job.get_id()
-    return {"id": item_id, "status": "queued"}, 202
+    return {"id": item_id, "status": "queued"}
 
-@app.get("/article/{item_id}")
+
+@api.get("/article/{item_id}")
 async def get_article(item_id: str):
     item = DB.get(item_id)
     if not item:
@@ -121,3 +124,5 @@ async def get_article(item_id: str):
         return {"id": item_id, "status": "processing"}
     except Exception:
         return {"id": item_id, "status": "processing"}
+
+app.include_router(api)
